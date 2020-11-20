@@ -1,7 +1,7 @@
 from torch.utils import data as data
 from torchvision.transforms.functional import normalize
 
-from basicsr.data.transforms import augment, paired_random_crop
+from basicsr.data.transforms import augment, paired_random_crop, cutblur
 from basicsr.data.util import (paired_paths_from_folder,
                                paired_paths_from_lmdb,
                                paired_paths_from_meta_info_file)
@@ -100,6 +100,12 @@ class PairedImageDataset(data.Dataset):
         img_gt, img_lq = img2tensor([img_gt, img_lq],
                                     bgr2rgb=True,
                                     float32=True)
+
+        if self.opt['phase'] == 'train':
+            #CutBlur
+            if self.opt["cutblur_enable"]:
+                img_gt, img_lq = cutblur(img_gt, img_lq, self.opt['cutblur_prob'], self.opt['cutblur_alpha']) #prob=1.0, alpha=1.0
+
         # normalize
         if self.mean is not None or self.std is not None:
             normalize(img_lq, self.mean, self.std, inplace=True)

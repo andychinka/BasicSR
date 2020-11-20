@@ -1,3 +1,6 @@
+# To FIX: ImportError: /lib64/libstdc++.so.6: version `GLIBCXX_3.4.21' not found (required by /apps/anaconda3/lib/python3.7/site-packages/scipy/_lib/_uarray/_uarray.cpython-37m-x86_64-linux-gnu.so)
+from scipy.ndimage.filters import convolve
+
 import argparse
 import datetime
 import logging
@@ -6,6 +9,7 @@ import random
 import time
 import torch
 from os import path as osp
+
 
 from basicsr.data import create_dataloader, create_dataset
 from basicsr.data.data_sampler import EnlargedSampler
@@ -128,7 +132,6 @@ def create_train_val_dataloader(opt, logger):
 def main():
     # parse options, set distributed setting, set ramdom seed
     opt = parse_options(is_train=True)
-
     torch.backends.cudnn.benchmark = True
     # torch.backends.cudnn.deterministic = True
 
@@ -223,15 +226,28 @@ def main():
                 model.save(epoch, current_iter)
 
             # validation
-            if opt.get('val') is not None and (current_iter %
-                                               opt['val']['val_freq'] == 0):
-                model.validation(val_loader, current_iter, tb_logger,
-                                 opt['val']['save_img'])
+            # if opt.get('val') is not None and (current_iter %
+            #                                    opt['val']['val_freq'] == 0):
+            #     model.validation(val_loader, current_iter, tb_logger,
+            #                      opt['val']['save_img'])
 
             data_time = time.time()
             iter_time = time.time()
             train_data = prefetcher.next()
         # end of iter
+
+        cur_lr = model.get_current_learning_rate()[0]
+        log_dict = model.get_current_log()
+        # print("log_dict", log_dict)
+        l1_loss = log_dict.get("l_pix")
+        percep_loss = log_dict.get("l_percep")
+        model.validation(val_loader, current_iter, tb_logger, opt['val']['save_img'])
+        psnr = model.metric_results["psnr"]
+
+        csv_line = ','.join([str(epoch), str(cur_lr), str(l1_loss), str(percep_loss), str(psnr)])
+
+        with open(opt['path']["log"] + "/result.csv", 'a') as fd:
+            fd.write(f'\n{csv_line}')
 
     # end of epoch
 

@@ -1,0 +1,115 @@
+# Modified SRResNet w/o BN from:
+# Photo-Realistic Single Image Super-Resolution Using a Generative Adversarial Network
+
+# general settings
+name: Perceptual_20Block_50enlarge_vgg16_3_3 #TEST #001_MSRResNet_x4_f64b18_DIV2K_1000k_B16G1_wandb
+model_type: SRModel
+scale: 4
+num_gpu: 1  # set num_gpu: 0 for cpu mode
+manual_seed: 0
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: Mini-DIV2k
+    type: PairedImageDataset
+    dataroot_gt: /home/MSAI/ch0001ka/adv-cv-proj2/Mini-DIV2k/Train/HR
+    dataroot_lq: /home/MSAI/ch0001ka/adv-cv-proj2/Mini-DIV2k/Train/LR_x4
+    # (for lmdb)
+    # dataroot_gt: datasets/DIV2K/DIV2K_train_HR_sub.lmdb
+    # dataroot_lq: datasets/DIV2K/DIV2K_train_LR_bicubic_X4_sub.lmdb
+    filename_tmpl: '{}'
+    io_backend:
+      type: disk
+      # (for lmdb)
+      # type: lmdb
+
+    gt_size: 128
+    use_flip: true
+    use_rot: true
+
+    #prob=1.0, alpha=1.0
+    cutblur_enable: false
+    cutblur_prob: 1.0
+    cutblur_alpha: 1.0
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 6
+    batch_size_per_gpu: 16
+    dataset_enlarge_ratio: 50 # 100
+    prefetch_mode: ~
+
+  val:
+    name: Mini-DIV2k-Val
+    type: PairedImageDataset
+    dataroot_gt: /home/MSAI/ch0001ka/adv-cv-proj2/Mini-DIV2k/Val/HR
+    dataroot_lq: /home/MSAI/ch0001ka/adv-cv-proj2/Mini-DIV2k/Val/LR_x4
+    io_backend:
+      type: disk
+
+# network structures
+network_g:
+  type: MSRResNet
+  num_in_ch: 3
+  num_out_ch: 3
+  num_feat: 64
+  num_block: 20 #16
+  upscale: 4
+
+# path
+path:
+  pretrain_network_g: ~ #/home/MSAI/ch0001ka/adv-cv-proj2/BasicSR/experiments/001_MSRResNet_x4_f64b16_DIV2K_1000k_B16G1_wandb/models/net_g_6000.pth #~
+  strict_load_g: true
+  resume_state: ~ #/home/MSAI/ch0001ka/adv-cv-proj2/BasicSR/experiments/001_MSRResNet_x4_f64b16_DIV2K_1000k_B16G1_wandb/training_states/6000.state # ~
+
+# training settings
+train:
+  optim_g:
+    type: AdamW
+    lr: !!float 2e-4
+    weight_decay: 0
+    betas: [0.9, 0.99]
+
+  scheduler:
+    type: CosineAnnealingRestartLR
+    periods: [250000, 250000, 250000, 250000]
+    restart_weights: [1, 1, 1, 1]
+    eta_min: !!float 1e-7
+
+  total_iter: 50000 # 1000000
+  warmup_iter: -1  # no warm up
+
+  # losses
+  perceptual_opt:
+    type: PerceptualLoss
+    vgg_type: vgg19
+    layer_weights:
+      conv3_3: 1.0
+#    loss_weight: 1.0
+#    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 5e3
+  save_img: false
+
+  metrics:
+    psnr: # metric name, can be arbitrary
+      type: calculate_psnr
+      crop_border: 4
+      test_y_channel: false
+
+# logging settings
+logger:
+  print_freq: 1563 # 100
+  save_checkpoint_freq: !!float 1563 #2e3
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500

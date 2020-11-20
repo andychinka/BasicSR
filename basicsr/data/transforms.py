@@ -1,6 +1,8 @@
 import cv2
 import random
-
+import numpy as np
+from torchvision import transforms
+import torch
 
 def mod_crop(img, scale):
     """Mod crop images, used during testing.
@@ -144,3 +146,37 @@ def augment(imgs, hflip=True, rotation=True, flows=None):
         return imgs, flows
     else:
         return imgs
+
+# ref: https://github.com/clovaai/cutblur/blob/master/augments.py
+import PIL
+def cutblur(im1, im2, prob=1.0, alpha=0.9):
+    im2_ori_size = im2.size()
+    print("im2_ori_size", im2_ori_size)
+    resize = transforms.Resize((im1.size()[1], im1.size()[2]), interpolation=PIL.Image.BICUBIC)
+    im2 = transforms.ToTensor()(resize(transforms.ToPILImage()(im2)))
+    if im1.size() != im2.size():
+        # print("im1.size()", im1.size())
+        # print("im2.size()", im2.size())
+        raise ValueError("im1 and im2 have to be the same resolution.")
+
+    if alpha <= 0 or np.random.rand(1) >= prob:
+        return im1, im2
+
+    cut_ratio = np.random.randn() * 0.01 + alpha
+
+    h, w = im2.size(1), im2.size(2)
+    ch, cw = np.int(h*cut_ratio), np.int(w*cut_ratio)
+    print("cut_ratio", cut_ratio, "h", h, "w", w, "ch", ch, "cw", cw)
+    cy = np.random.randint(0, h-ch+1)
+    cx = np.random.randint(0, w-cw+1)
+
+    # apply CutBlur to inside or outside
+    if np.random.random() > 0.5:
+        im2[..., cy:cy+ch, cx:cx+cw] = im1[..., cy:cy+ch, cx:cx+cw]
+    else:
+        im2_aug = im1.clone()
+        im2_aug[..., cy:cy+ch, cx:cx+cw] = im2[..., cy:cy+ch, cx:cx+cw]
+        im2 = im2_aug
+    im2 = torch.reshape(im2, (-1, im2_ori_size[1], im2_ori_size[2]))
+    print("im2 reshape", im2.size())
+    return im1, im2

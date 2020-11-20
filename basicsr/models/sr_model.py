@@ -75,6 +75,8 @@ class SRModel(BaseModel):
         if optim_type == 'Adam':
             self.optimizer_g = torch.optim.Adam(optim_params,
                                                 **train_opt['optim_g'])
+        elif optim_type == "AdamW":
+            self.optimizer_g = torch.optim.AdamW(optim_params, **train_opt["optim_g"])
         else:
             raise NotImplementedError(
                 f'optimizer {optim_type} is not supperted yet.')
@@ -155,21 +157,23 @@ class SRModel(BaseModel):
                                              img_name,
                                              f'{img_name}_{current_iter}.png')
                 else:
-                    if self.opt['val']['suffix']:
-                        save_img_path = osp.join(
-                            self.opt['path']['visualization'], dataset_name,
-                            f'{img_name}_{self.opt["val"]["suffix"]}.png')
-                    else:
-                        save_img_path = osp.join(
-                            self.opt['path']['visualization'], dataset_name,
-                            f'{img_name}_{self.opt["name"]}.png')
+                    # if self.opt['val']['suffix']:
+                    #     save_img_path = osp.join(
+                    #         self.opt['path']['visualization'], dataset_name,
+                    #         f'{img_name}_{self.opt["val"]["suffix"]}.png')
+                    # else:
+                    #     save_img_path = osp.join(
+                    #         self.opt['path']['visualization'], dataset_name,
+                    #         f'{img_name}_{self.opt["name"]}.png')
+                    save_img_path = osp.join(self.opt['path']['visualization'], dataset_name,f'{img_name}.png')
+
                 imwrite(sr_img, save_img_path)
 
             if with_metrics:
                 # calculate metrics
                 opt_metric = deepcopy(self.opt['val']['metrics'])
                 for name, opt_ in opt_metric.items():
-                    metric_type = opt_.pop('type')
+                    metric_type = opt_.pop('type') #psnr
                     self.metric_results[name] += getattr(
                         metric_module, metric_type)(sr_img, gt_img, **opt_)
             pbar.update(1)

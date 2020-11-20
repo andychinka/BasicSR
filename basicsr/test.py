@@ -1,3 +1,6 @@
+# To FIX: ImportError: /lib64/libstdc++.so.6: version `GLIBCXX_3.4.21' not found (required by /apps/anaconda3/lib/python3.7/site-packages/scipy/_lib/_uarray/_uarray.cpython-37m-x86_64-linux-gnu.so)
+from scipy.ndimage.filters import convolve
+
 import logging
 import torch
 from os import path as osp
